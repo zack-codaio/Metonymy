@@ -9,7 +9,11 @@ window.tray_open = false;
 //load or build stack of URLs
 var wiki_stack = {};
 var user_map = {};
-resync_stack();
+
+
+//first thing: resyncs and pushes to contentscript.js
+//should: get URL and update last_accessed before pushing back
+//resync_stack();
 
 function resync_stack() {
     chrome.storage.sync.get('wiki_stack', function (data) {
@@ -23,7 +27,6 @@ function resync_stack() {
             user_map = data.user_map;
         }
     });
-
 
     //pass data to contentscript.js
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
@@ -64,6 +67,44 @@ chrome.runtime.onMessage.addListener(
         "from a content script:" + sender.tab.url :
             "from the extension");
 
+        if(request.greeting == "init"){
+
+            var cur_article_key = sender.tab.url.split("/wiki/")[1]; //whatever is after /wiki/
+
+            chrome.storage.sync.get('wiki_stack', function (data) {
+                if(data.wiki_stack){
+                    wiki_stack = data.wiki_stack;
+                    if(wiki_stack[cur_article_key]){
+                        console.log("updating wiki_stack.last_accessed for "+cur_article_key);
+                        wiki_stack[cur_article_key].last_accessed = Date.now();
+                    }
+                }
+
+                chrome.storage.sync.get("user_map", function(data){
+                    if(data.user_map){
+                        user_map = data.user_map;
+                        if(user_map[cur_article_key]){
+                            console.log("updating user_map.last_accessed for "+cur_article_key);
+                            console.log(user_map[cur_article_key].last_accessed);
+                            user_map[cur_article_key].last_accessed = Date.now();
+                        }
+                    }
+
+                    chrome.storage.sync.set({'wiki_stack': wiki_stack, 'user_map' : user_map}, function() {
+                        // Notify that we saved.
+                        console.log('Settings saved');
+
+                        //resync_stack();
+
+                        //pass data to contentscript.js
+                        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+                            chrome.tabs.sendMessage(tabs[0].id, {greeting: "init_stack", wiki_stack: wiki_stack, user_map: user_map}, function(response) {});
+                        });
+                    });
+                });
+            });
+        }
+
         //push URL
         if (request.greeting == "push_tab"){
             console.log(wiki_stack);
@@ -71,6 +112,8 @@ chrome.runtime.onMessage.addListener(
             console.log(article_key);
             if(typeof(wiki_stack[article_key]) != "undefined"){ //if already exists
                 wiki_stack[article_key].last_accessed = Date.now();
+                user_map[article_key].last_accessed = Date.now();
+                //console.log(wiki_stack);
             }
             else{
                 var new_item = {};
@@ -88,17 +131,11 @@ chrome.runtime.onMessage.addListener(
                 //could go off of firstHeading instead of by domain
             }
 
-
-
-
-
-
-
             chrome.storage.sync.set({'wiki_stack': wiki_stack}, function() {
                 // Notify that we saved.
                 console.log('Settings saved');
 
-                resync_stack();
+                //resync_stack();
             });
 
 

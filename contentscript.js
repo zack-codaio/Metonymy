@@ -10,7 +10,10 @@ $(document).ready(function(){
 
     var display_name = $("#firstHeading").text();
 
+
+
     open_tray();
+    init_stack();
     push_tab();
 
     function open_tray(){
@@ -35,6 +38,14 @@ $(document).ready(function(){
             init();
         });
         window.tray_opened = true;
+    }
+
+    function init_stack(){
+        console.log("called init_stack");
+        chrome.runtime.sendMessage({greeting: "init"}, function(response){
+            console.log("received init response");
+            console.log(response.farewell);
+        });
     }
 
     function push_tab(){
@@ -83,7 +94,7 @@ $(document).ready(function(){
             }
 
             //sync stack
-            if(request.greeting == "resync_stack"){
+            if(request.greeting == "resync_stack" || request.greeting == "init_stack"){
                 console.log("received resync stack command");
                 console.log("history object:");
                 console.log(request.wiki_stack);
@@ -94,14 +105,40 @@ $(document).ready(function(){
                 saved_stack = request.user_map;
 
                 var saved_links = Object.keys(request.user_map);
-                //console.log(saved_links);
+                console.log(saved_links);
+
+                //to sort by date added
+                //sort the array of keys by date added
+                saved_links.sort(function(a, b){
+                    //console.log(request.user_map[a].last_accessed);
+                    //console.log(request.user_map[b].last_accessed);
+                    console.log(request.user_map[b].display_name + " "+request.user_map[a].display_name);
+                    console.log(request.user_map[b].last_accessed - request.user_map[a].last_accessed);
+                    return(request.user_map[b].last_accessed - request.user_map[a].last_accessed);
+
+                    //console.log(request.user_map[a]);
+                    //var dateA = new Date(request.user_map[a].last_accessed);
+                    //var dateB = new Date(request.user_map[b].last_accessed);
+
+                    //console.log(Date(request.user_map[a].last_accessed));
+                    //console.log(Date(request.user_map[b].last_accessed));
+                    //console.log(Date(request.user_map[a].last_accessed) < Date(request.user_map[b].last_accessed));
+                    //console.log(dateA);
+                    //console.log(dateB);
+                    //console.log(dateA < dateB);
+                   //return Date(request.user_map[a].last_accessed) > Date(request.user_map[b].last_accessed);
+                   // return dateA < dateB;
+                });
+                console.log(saved_links);
+
+
                 var links_container = $("#saved_links");
                 links_container.html("");
                 for(var i = 0; i < saved_links.length; i++){
                     links_container.append("<a href="+request.user_map[saved_links[i]].url+"><div class='saved_link'>"+request.user_map[saved_links[i]].display_name+"</div></a>");
                 }
             }
-        })
+        });
 
 
 
@@ -162,9 +199,3 @@ $(document).ready(function(){
 
 
 });
-
-
-
-//$(document).on("extension_started", function(){
-//
-//});
