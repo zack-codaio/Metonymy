@@ -9,6 +9,7 @@ $(document).ready(function(){
     var saved_stack;
 
     var display_name = $("#firstHeading").text();
+    var last_links = [];
 
 
 
@@ -56,9 +57,10 @@ $(document).ready(function(){
     }
 
     function save_tab(){
-        chrome.runtime.sendMessage({greeting: "save_tab", display_name: display_name}, function(response){
+        chrome.runtime.sendMessage({greeting: "save_tab", display_name: display_name, last_links: last_links}, function(response){
             console.log("received save tab response");
             console.log(response.farewell);
+            //add stack of last_links (sorted)
         })
     }
 
@@ -105,31 +107,18 @@ $(document).ready(function(){
                 saved_stack = request.user_map;
 
                 var saved_links = Object.keys(request.user_map);
-                console.log(saved_links);
+                //console.log(saved_links);
 
                 //to sort by date added
                 //sort the array of keys by date added
                 saved_links.sort(function(a, b){
-                    //console.log(request.user_map[a].last_accessed);
-                    //console.log(request.user_map[b].last_accessed);
-                    console.log(request.user_map[b].display_name + " "+request.user_map[a].display_name);
-                    console.log(request.user_map[b].last_accessed - request.user_map[a].last_accessed);
+                    //console.log(request.user_map[b].display_name + " "+request.user_map[a].display_name);
+                    //console.log(request.user_map[b].last_accessed - request.user_map[a].last_accessed);
                     return(request.user_map[b].last_accessed - request.user_map[a].last_accessed);
-
-                    //console.log(request.user_map[a]);
-                    //var dateA = new Date(request.user_map[a].last_accessed);
-                    //var dateB = new Date(request.user_map[b].last_accessed);
-
-                    //console.log(Date(request.user_map[a].last_accessed));
-                    //console.log(Date(request.user_map[b].last_accessed));
-                    //console.log(Date(request.user_map[a].last_accessed) < Date(request.user_map[b].last_accessed));
-                    //console.log(dateA);
-                    //console.log(dateB);
-                    //console.log(dateA < dateB);
-                   //return Date(request.user_map[a].last_accessed) > Date(request.user_map[b].last_accessed);
-                   // return dateA < dateB;
                 });
-                console.log(saved_links);
+                last_links = saved_links;
+                console.log(last_links);
+
 
 
                 var links_container = $("#saved_links");

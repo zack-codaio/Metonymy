@@ -112,7 +112,9 @@ chrome.runtime.onMessage.addListener(
             console.log(article_key);
             if(typeof(wiki_stack[article_key]) != "undefined"){ //if already exists
                 wiki_stack[article_key].last_accessed = Date.now();
-                user_map[article_key].last_accessed = Date.now();
+                if(typeof(user_map[article_key]) != "undefined"){
+                    user_map[article_key].last_accessed = Date.now();
+                }
                 //console.log(wiki_stack);
             }
             else{
@@ -151,6 +153,19 @@ chrome.runtime.onMessage.addListener(
             new_item.article_key = sender.tab.url.split("/wiki/")[1]; //whatever is after /wiki/
             new_item.last_accessed = Date.now();
 
+            last_links = request.last_links;
+            console.log(last_links);
+            if(typeof(user_map[last_links[0]].display_name) != "undefined"){
+                node_distance(new_item.display_name, user_map[last_links[0]].display_name, new_item.article_key, user_map[last_links[0]].article_key);
+            }
+            if(typeof(user_map[last_links[1]].display_name) != "undefined"){
+                node_distance(new_item.display_name, user_map[last_links[1]].display_name, new_item.article_key, user_map[last_links[1]].article_key);
+            }
+            if(typeof(user_map[last_links[2]].display_name) != "undefined"){
+                node_distance(new_item.display_name, user_map[last_links[2]].display_name, new_item.article_key, user_map[last_links[2]].article_key);
+            }
+
+
             console.log(new_item);
 
 
@@ -171,3 +186,105 @@ chrome.runtime.onMessage.addListener(
         }
 
     });
+
+
+//TODO:
+//- function to get distance between two nodes - gets distance, but doesn't return anything after
+//  query neo4js via REST api - done
+//  build graph based on distances
+//- function to cluster (by adding new, user defined relationships)?
+//- function to suggest articles
+
+//node_distance('Complex Number', 'Barack Obama');
+//get distance between nodeA and nodeB
+//takes display names of nodeA and nodeB
+//return distance
+//should take
+function node_distance(nodeA, nodeB, keyA, keyB){
+    console.log("calling node_distance with "+nodeA+" "+nodeB);
+    //make ajax call to local server
+
+    //var query="MATCH (n:User) RETURN n, labels(n) as l LIMIT {limit}"
+    var query="MATCH (p0:Page {title:'"+nodeA+"'}), (p1:Page {title:'"+nodeB+"'}), p = shortestPath((p0)-[*..6]-(p1)) \r RETURN p";
+    var params={title1: nodeA, title2: nodeB};
+    var cb=function(err,data) { console.log(JSON.stringify(data)) }
+
+    var postJson = {};
+    var statements ={"statement":query, "parameters":params};
+    postJson.statements = [statements];
+
+    var txUrl = "http://localhost:7474/db/data/transaction/commit";
+    function cypher(query,params,cb) {
+
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", txUrl, true);
+        xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+        xhr.onreadystatechange = function(response) {
+            if (xhr.readyState == 4) {
+                //console.log("returned from ajax request");
+                //console.log(response.target.response);
+                var responseJson = JSON.parse(response.target.response);
+                //console.log(responseJson);
+                results_list = responseJson.results[0].data[0]["row"][0]
+
+                results_list = count_distance(results_list);
+                console.log("distance between "+nodeA+ " and "+nodeB+": "+results_list.length);
+                var results_array = [];
+                //send event with nodeA, nodeB, and distance between (maybe include the linkages?)
+
+
+                function count_distance(results_list){
+                    var new_results_array = []
+                    for(var i = 0; i < results_list.length; i++){
+                        if(typeof(results_list[i].title) != "undefined"){
+                            new_results_array.push(results_list[i]);
+                        }
+                    }
+                    console.log(new_results_array);
+                    results_array = new_results_array;
+
+                    update_distance(keyA, keyB, results_array);
+
+                    return new_results_array;
+                }
+            }
+        };
+        xhr.send(JSON.stringify(postJson));
+
+    }
+
+    function update_distance(keyA, keyB, distanceArray){
+        if(typeof(user_map[keyA].distance) == "undefined"){
+            user_map[keyA].distance = {};
+            user_map[keyA].distance[keyB] = distanceArray;
+        }
+        else{
+            user_map[keyA].distance[keyB] = distanceArray;
+        }
+
+        if(typeof(user_map[keyB].distance) == "undefined"){
+            user_map[keyB].distance = {};
+            user_map[keyB].distance[keyA] = distanceArray.reverse();
+        }
+        else{
+            user_map[keyB].distance[keyA] = distanceArray.reverse();
+        }
+
+        console.log(user_map);
+    }
+
+    cypher(query,params,cb);
+
+    //
+    //{"results":[
+    //    {"columns":["n","l"],
+    //        "data":[
+    //            {"row":[{"name":"Aran"},["User"]]}
+    //        ]
+    //    }],
+    //    "errors":[]}
+
+
+
+    return -1;
+}

@@ -11,6 +11,8 @@
     "unlimitedStorage",
     "https://en.wikipedia.org/",
     "http://en.wikipedia.org/",
+    "http://localhost/*",
+    "http://127.0.0.1/*",
     "tabs"
   ],
   "background": {
