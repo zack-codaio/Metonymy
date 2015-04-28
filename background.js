@@ -9,6 +9,7 @@ window.tray_open = false;
 //load or build stack of URLs
 var wiki_stack = {};
 var user_map = {};
+var number_returns = 0;
 
 
 //first thing: resyncs and pushes to contentscript.js
@@ -69,7 +70,12 @@ chrome.runtime.onMessage.addListener(
 
         if(request.greeting == "init"){
 
+            console.log(request);
+
             var cur_article_key = sender.tab.url.split("/wiki/")[1]; //whatever is after /wiki/
+
+            //check nearby connections
+            get_local_holes(request.display_name);
 
             chrome.storage.sync.get('wiki_stack', function (data) {
                 if(data.wiki_stack){
@@ -155,14 +161,23 @@ chrome.runtime.onMessage.addListener(
 
             last_links = request.last_links;
             console.log(last_links);
-            if(typeof(user_map[last_links[0]].display_name) != "undefined"){
+
+            number_returns = 0;
+
+            if(last_links.length >= 1 && typeof(user_map[last_links[0]].display_name) != "undefined" && new_item.article_key != user_map[last_links[0]]){
                 node_distance(new_item.display_name, user_map[last_links[0]].display_name, new_item.article_key, user_map[last_links[0]].article_key);
+
+                number_returns++;
             }
-            if(typeof(user_map[last_links[1]].display_name) != "undefined"){
+            if(last_links.length >= 2 &&typeof(user_map[last_links[1]].display_name) != "undefined" && new_item.article_key != user_map[last_links[1]]){
                 node_distance(new_item.display_name, user_map[last_links[1]].display_name, new_item.article_key, user_map[last_links[1]].article_key);
+
+                number_returns++;
             }
-            if(typeof(user_map[last_links[2]].display_name) != "undefined"){
+            if(last_links.length >= 3 &&typeof(user_map[last_links[2]].display_name) != "undefined" && new_item.article_key != user_map[last_links[2]]){
                 node_distance(new_item.display_name, user_map[last_links[2]].display_name, new_item.article_key, user_map[last_links[2]].article_key);
+
+                number_returns++;
             }
 
 
@@ -187,6 +202,14 @@ chrome.runtime.onMessage.addListener(
 
     });
 
+function save_and_update(){
+    chrome.storage.sync.set({'user_map': user_map}, function() {
+        // Notify that we saved.
+        console.log('Settings saved');
+
+        resync_stack();
+    });
+}
 
 //TODO:
 //- function to get distance between two nodes - gets distance, but doesn't return anything after
@@ -199,7 +222,6 @@ chrome.runtime.onMessage.addListener(
 //get distance between nodeA and nodeB
 //takes display names of nodeA and nodeB
 //return distance
-//should take
 function node_distance(nodeA, nodeB, keyA, keyB){
     console.log("calling node_distance with "+nodeA+" "+nodeB);
     //make ajax call to local server
@@ -232,6 +254,10 @@ function node_distance(nodeA, nodeB, keyA, keyB){
                 var results_array = [];
                 //send event with nodeA, nodeB, and distance between (maybe include the linkages?)
 
+                number_returns--;
+                if(number_returns == 0){
+                    save_and_update()
+                }
 
                 function count_distance(results_list){
                     var new_results_array = []
@@ -244,7 +270,6 @@ function node_distance(nodeA, nodeB, keyA, keyB){
                     results_array = new_results_array;
 
                     update_distance(keyA, keyB, results_array);
-
                     return new_results_array;
                 }
             }
@@ -271,6 +296,7 @@ function node_distance(nodeA, nodeB, keyA, keyB){
         }
 
         console.log(user_map);
+
     }
 
     cypher(query,params,cb);
@@ -288,3 +314,174 @@ function node_distance(nodeA, nodeB, keyA, keyB){
 
     return -1;
 }
+
+
+//may or may not take a curNode
+//work on single node first
+function get_local_holes(curNode){
+    //if curNode is undefined, get holes for entire graph
+    //else, get holes that are most closely related to current node
+
+
+    //compile a list of all connections either related to current node or to the entire graph
+    //get local connections
+    var immediate_connections = {};
+    var query_returns = 0;
+        //key: article name
+        //value: sightings
+    get_immediate_connections(curNode);
+
+    //return list of all connections on a single node
+    function get_immediate_connections(nodeA){
+        var query="MATCH (p0:Page {title:'"+nodeA+"'})-[r:Link]->(results) RETURN results LIMIT 25";
+        console.log(query);
+        var params={title1: nodeA};
+        var cb=function(err,data) { console.log(JSON.stringify(data)) }
+
+        var postJson = {};
+        var statements ={"statement":query, "parameters":params};
+        postJson.statements = [statements];
+
+        var txUrl = "http://localhost:7474/db/data/transaction/commit";
+
+        cypher(query,params,cb);
+
+        function cypher(query,params,cb) {
+
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", txUrl, true);
+            xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+            xhr.onreadystatechange = function (response) {
+                if (xhr.readyState == 4) {
+                    console.log("get_connections() - returned from ajax request");
+                    console.log(response);
+
+                    var responseJson = JSON.parse(response.target.response);
+                    console.log(responseJson);
+
+                    console.log(responseJson.results[0].data[0].row[0].title);
+                    for(var i = 0; i < 25; i++){
+                        var current_sighting = responseJson.results[0].data[i].row[0].title;
+                        //check for existence
+                        if(typeof(current_sighting) != "undefined"){
+                            //push to immediate_connections
+                            if(typeof(immediate_connections[current_sighting]) == "undefined"){
+                                immediate_connections[current_sighting] = 1;
+                            }
+                            else{
+                                immediate_connections[current_sighting] = parseInt(immediate_connections[current_sighting]) + 1;
+                            }
+                        }
+                    }
+
+                    //console.log(immediate_connections);
+
+                    //branch out one level deep
+                    var immediate_keys = Object.keys(immediate_connections);
+                    for(var i = 0; i < 25; i++){
+                        var one_deep = immediate_keys[i];
+                        //check for existence
+                        if(typeof(one_deep) != "undefined"){
+                            query_returns++;
+                            get_connections(one_deep);
+                        }
+                    }
+                    console.log("query returns - pre");
+                    console.log(query_returns);
+                }
+            };
+            xhr.send(JSON.stringify(postJson));
+
+        }
+    }
+
+//return list of all connections on a single node
+    function get_connections(nodeA){
+
+
+        var query="MATCH (p0:Page {title:'"+nodeA+"'})-[r:Link]->(results) RETURN results LIMIT 25";
+        console.log(query);
+        var params={title1: nodeA};
+        var cb=function(err,data) { console.log(JSON.stringify(data)) }
+
+        var postJson = {};
+        var statements ={"statement":query, "parameters":params};
+        postJson.statements = [statements];
+
+        var txUrl = "http://localhost:7474/db/data/transaction/commit";
+
+        cypher(query,params,cb);
+
+        function cypher(query,params,cb) {
+
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", txUrl, true);
+            xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+            xhr.onreadystatechange = function (response) {
+                if (xhr.readyState == 4) {
+                    console.log("get_connections("+nodeA+") - returned from ajax request");
+                    console.log(response);
+
+                    query_returns--;
+                    console.log("query_returns - post");
+                    console.log(query_returns);
+                    if(query_returns == 0){
+                        console.log("returning compiled immediate_connections");
+
+
+                        //clean up
+                        //remove sightings == 1
+
+                        var compiled_keys = Object.keys(immediate_connections);
+                        console.log(compiled_keys);
+                        console.log(compiled_keys.length);
+                        for(var i = 0; i < compiled_keys.length; i++){
+                            //console.log(compiled_keys[i]);
+                            //console.log(i);
+                            if(typeof(compiled_keys[i]) != "undefined" && immediate_connections[compiled_keys[i]] <= 1){
+                                console.log("deleting: "+compiled_keys[i]);
+                                delete immediate_connections[compiled_keys[i]];
+                            }
+                            else{
+                                console.log(immediate_connections[compiled_keys[i]]);
+                                console.log("not deleting: "+compiled_keys[i]);
+                            }
+                        }
+
+                        console.log(immediate_connections);
+
+                        //mark recently visited
+                        //mark already saved
+                    }
+
+                    var responseJson = JSON.parse(response.target.response);
+                    console.log(responseJson);
+
+                    console.log(responseJson.results[0].data[0].row[0].title);
+                    if(typeof(responseJson.results[0].data[0].row) != "undefined") {
+                        for (var i = 0; i < 25; i++) {
+                            var current_sighting = responseJson.results[0].data[i].row[0].title;
+                            //check for existence
+                            if (typeof(current_sighting) != "undefined") {
+                                //push to immediate_connections
+                                if (typeof(immediate_connections[current_sighting]) == "undefined") {
+                                    immediate_connections[current_sighting] = 1;
+                                }
+                                else {
+                                    immediate_connections[current_sighting] = parseInt(immediate_connections[current_sighting]) + 1;
+                                }
+                            }
+                        }
+                    }
+
+
+                }
+            };
+            xhr.send(JSON.stringify(postJson));
+
+        }
+    }
+
+
+}
+

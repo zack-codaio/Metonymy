@@ -11,7 +11,9 @@
 //  padding:20px;
   box-sizing:border-box;
   padding-top:50px;
-  overflow:scroll;
+  //overflow-y:scroll;
+  //overflow-x: visible;
+  overflow:visible;
 }
 
 #rh_sidebar{
@@ -63,4 +65,29 @@
     height:30px;
   }
 
+}
+
+//force graph css
+.link {
+  stroke: #000;
+  stroke-width: 1.5px;
+}
+
+.node {
+  cursor: move;
+  fill: #ccc;
+  stroke: #000;
+  stroke-width: 1.5px;
+}
+
+.node.fixed {
+  fill: #f00;
+}
+
+.force_container{
+  position:absolute;
+  width:800px;
+  height:800px;
+  left:-800px;
+  top:0;
 }

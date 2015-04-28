@@ -9,7 +9,7 @@
   transition: right .5s;
   box-sizing: border-box;
   padding-top: 50px;
-  overflow: scroll; }
+  overflow: visible; }
 
 #rh_sidebar img {
   max-width: 100%;
@@ -42,5 +42,25 @@
   vertical-align: top; }
 #rh_sidebar .control_icon {
   height: 30px; }
+
+.link {
+  stroke: #000;
+  stroke-width: 1.5px; }
+
+.node {
+  cursor: move;
+  fill: #ccc;
+  stroke: #000;
+  stroke-width: 1.5px; }
+
+.node.fixed {
+  fill: #f00; }
+
+.force_container {
+  position: absolute;
+  width: 800px;
+  height: 800px;
+  left: -800px;
+  top: 0; }
 
 /*# sourceMappingURL=style.css.map */
