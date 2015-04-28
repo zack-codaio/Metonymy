@@ -102,6 +102,37 @@ $(document).ready(function () {
                 $('#mw-head').css({"margin-right": "0"});
             }
 
+            if (request.greeting == "push_recommendations"){
+                console.log("received push_recommendations");
+                var recommendations = request.recommendations;
+                console.log(recommendations);
+                var rec_keys = Object.keys(recommendations);
+
+                //to sort by most recommended
+                //sort the array of keys by number of sightings
+                rec_keys.sort(function (a, b) {
+                    //console.log(recommendations[a]);
+                    //console.log(recommendations[b]);
+                    //console.log(recommendations[rec_keys[a]] - recommendations[rec_keys[b]]);
+                    return (recommendations[b] - recommendations[a]);
+                });
+                console.log(recommendations);
+                console.log(rec_keys);
+
+
+                var links_container = $("#recommendations");
+                links_container.html("<p>Recommendations</p>");
+                for (var i = 0; i < rec_keys.length; i++) {
+
+                    // /w/index.php?search=Barack+Obama%2C+Sr.&title=Special%3ASearch
+                    var rec_link = '/w/index.php?search='+rec_keys[i]+'&title=Special%3ASearch';
+                    links_container.append("<a href=" + rec_link + "><div class='saved_link'>" + rec_keys[i] + " "+recommendations[rec_keys[i]] +"</div></a>");
+                }
+
+
+
+            }
+
             //sync stack
             if (request.greeting == "resync_stack" || request.greeting == "init_stack") {
                 console.log("received resync stack command");
@@ -130,7 +161,7 @@ $(document).ready(function () {
 
 
                 var links_container = $("#saved_links");
-                links_container.html("");
+                links_container.html("<p>Saved Links</p>");
                 for (var i = 0; i < saved_links.length; i++) {
                     links_container.append("<a href=" + request.user_map[saved_links[i]].url + "><div class='saved_link'>" + request.user_map[saved_links[i]].display_name + "</div></a>");
                 }
@@ -195,6 +226,9 @@ $(document).ready(function () {
         document.getElementById("history_icon").src = imgURL;
 
         $(".force_container").toggle();
+
+
+
     }
 
 

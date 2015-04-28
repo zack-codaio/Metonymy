@@ -423,8 +423,7 @@ function get_local_holes(curNode){
                     console.log(response);
 
                     query_returns--;
-                    console.log("query_returns - post");
-                    console.log(query_returns);
+                    console.log("query_returns - post "+query_returns);
                     if(query_returns == 0){
                         console.log("returning compiled immediate_connections");
 
@@ -433,23 +432,23 @@ function get_local_holes(curNode){
                         //remove sightings == 1
 
                         var compiled_keys = Object.keys(immediate_connections);
-                        console.log(compiled_keys);
-                        console.log(compiled_keys.length);
+                        //console.log(compiled_keys);
+                        //console.log(compiled_keys.length);
                         for(var i = 0; i < compiled_keys.length; i++){
                             //console.log(compiled_keys[i]);
                             //console.log(i);
                             if(typeof(compiled_keys[i]) != "undefined" && immediate_connections[compiled_keys[i]] <= 1){
-                                console.log("deleting: "+compiled_keys[i]);
+                                //console.log("deleting: "+compiled_keys[i]);
                                 delete immediate_connections[compiled_keys[i]];
                             }
                             else{
-                                console.log(immediate_connections[compiled_keys[i]]);
-                                console.log("not deleting: "+compiled_keys[i]);
+                                //console.log(immediate_connections[compiled_keys[i]]);
+                                //console.log("not deleting: "+compiled_keys[i]);
                             }
                         }
 
                         console.log(immediate_connections);
-
+                        push_recommendations(immediate_connections);
                         //mark recently visited
                         //mark already saved
                     }
@@ -481,7 +480,12 @@ function get_local_holes(curNode){
 
         }
     }
+}
 
-
+function push_recommendations(recommendations){
+    //pass data to contentscript.js
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        chrome.tabs.sendMessage(tabs[0].id, {greeting: "push_recommendations", recommendations: recommendations}, function(response) {});
+    });
 }
 

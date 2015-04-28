@@ -35,7 +35,15 @@
   }
 
   #saved_links{
+//    overflow:scroll;
+  }
+
+  #links_container{
     overflow:scroll;
+    position:absolute;
+    top:50px;
+    bottom:50px;
+
   }
 
   .rh_controls{
@@ -90,4 +98,9 @@
   height:800px;
   left:-800px;
   top:0;
+}
+
+#reset_state_button{
+  position:absolute;
+  bottom: 0;
 }
