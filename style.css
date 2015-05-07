@@ -9,7 +9,8 @@
   transition: right .5s;
   box-sizing: border-box;
   padding-top: 50px;
-  overflow: visible; }
+  overflow: visible;
+  border-left: 1px solid #a7d7f9; }
 
 #rh_sidebar img {
   max-width: 100%;

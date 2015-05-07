@@ -105,7 +105,7 @@ $(document).ready(function () {
             if (request.greeting == "push_recommendations"){
                 console.log("received push_recommendations");
                 var recommendations = request.recommendations;
-                console.log(recommendations);
+                //console.log(recommendations);
                 var rec_keys = Object.keys(recommendations);
 
                 //to sort by most recommended
@@ -116,8 +116,8 @@ $(document).ready(function () {
                     //console.log(recommendations[rec_keys[a]] - recommendations[rec_keys[b]]);
                     return (recommendations[b] - recommendations[a]);
                 });
-                console.log(recommendations);
-                console.log(rec_keys);
+                //console.log(recommendations);
+                //console.log(rec_keys);
 
 
                 var links_container = $("#recommendations");
@@ -125,7 +125,11 @@ $(document).ready(function () {
                 for (var i = 0; i < rec_keys.length; i++) {
 
                     // /w/index.php?search=Barack+Obama%2C+Sr.&title=Special%3ASearch
-                    var rec_link = '/w/index.php?search='+rec_keys[i]+'&title=Special%3ASearch';
+                    //var rec_spaces = rec_keys[i].replace(" ", "+");
+                    var rec_spaces = rec_keys[i].split(/\s/).join("+");
+                    //console.log("spaces replaced: "+rec_spaces);
+                    var rec_link = '/w/index.php?search='+rec_spaces+'&title=Special%3ASearch';
+                    //console.log(rec_link);
                     links_container.append("<a href=" + rec_link + "><div class='saved_link'>" + rec_keys[i] + " "+recommendations[rec_keys[i]] +"</div></a>");
                 }
 
@@ -212,6 +216,17 @@ $(document).ready(function () {
             }
         });
 
+        $('a').each(function(){
+            //console.log(this.attr("href"));
+            if(typeof($(this).attr("href")) != "undefined" && $(this).attr("href").indexOf('/wiki/') == 0){
+                //console.log(this);
+                $(this).click(function(event){
+                   console.log($(this).attr("href") + " clicked");
+                    event.stopPropagation();
+                });
+            }
+
+        });
 
         var imgURL = chrome.extension.getURL("img/star.svg");
         document.getElementById("star_icon").src = imgURL;
@@ -302,7 +317,7 @@ $(document).ready(function () {
 
                         new_link.source = objKeys[i];
                         new_link.target = distances[j];
-                        if(typeof(user_map[objKeys[i]].distance[distances[j]]) != "undefined") {
+                        if(typeof(user_map[objKeys[i]]) != "undefined" && typeof(user_map[objKeys[i]].distance[distances[j]]) != "undefined") {
                             new_link.weight = user_map[objKeys[i]].distance[distances[j]].length;
                         }
                         my_nodes.links.push(new_link);
