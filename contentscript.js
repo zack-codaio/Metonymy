@@ -127,7 +127,7 @@ $(document).ready(function () {
 
                 var links_container = $("#recommendations");
                 links_container.html("<p>Recommendations</p>");
-                for (var i = 0; i < 20; i++) {
+                for (var i = 0; i < 6; i++) {
                 //for (var i = 0; i < rec_keys.length; i++) {
 
                     // /w/index.php?search=Barack+Obama%2C+Sr.&title=Special%3ASearch

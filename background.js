@@ -393,9 +393,23 @@ function get_local_holes(curNode) {
 
     //return list of all connections on a single node
     function get_immediate_connections(nodeA) {
-        var query = "MATCH (p0:Page {title:'" + nodeA + "'})-[r:Link]->(results) RETURN results LIMIT " + limit_results;
-        console.log(query);
-        var params = {title1: nodeA};
+
+        //BUG:
+        //need to make sure strings are safe, substitute out \' for '
+        //http://neo4j.com/docs/stable/cypher-expressions.html
+        function replaceAll(find, replace, str) {
+            return str.replace(new RegExp(find, 'g'), replace);
+        }
+
+        var inputNode = nodeA;
+        replaceAll("'", "\\'", inputNode);
+        //console.log(inputNode);
+        inputNode.replace("'", "\\'");
+        //this doesn't work.
+
+        var query = "MATCH (p0:Page {title:'" + inputNode + "'})-[r:Link]->(results) RETURN results LIMIT " + limit_results;
+        //console.log(query);
+        var params = {title1: inputNode};
         var cb = function (err, data) {
             console.log(JSON.stringify(data))
         }
@@ -496,7 +510,7 @@ function get_local_holes(curNode) {
                     //console.log(response);
 
                     query_returns--;
-                    //console.log("query_returns - post " + query_returns);
+                    console.log("query_returns - post " + query_returns);
                     if (query_returns == 0) {
                         console.log("returning compiled immediate_connections");
 
