@@ -16,20 +16,22 @@ var idfReturn = 0;
 var globalTF = {};
 var globalIDF = {}
 var globalTFIDF = {};
+var tabID = {};
 
 
 //first thing: resyncs and pushes to contentscript.js
 //should: get URL and update last_accessed before pushing back
 //resync_stack();
 
+
 function resync_stack() {
-    chrome.storage.sync.get('wiki_stack', function (data) {
+    chrome.storage.local.get('wiki_stack', function (data) {
         if (data.wiki_stack) {
             wiki_stack = data.wiki_stack;
         }
     });
 
-    chrome.storage.sync.get("user_map", function (data) {
+    chrome.storage.local.get("user_map", function (data) {
         if (data.user_map) {
             user_map = data.user_map;
         }
@@ -83,6 +85,11 @@ chrome.runtime.onMessage.addListener(
 
         if (request.greeting == "init") {
             console.log("received init");
+
+            //tabID = tabs[0].id;
+
+
+
             console.log(request);
 
             var cur_article_key = sender.tab.url.split("/wiki/")[1]; //whatever is after /wiki/
@@ -92,7 +99,7 @@ chrome.runtime.onMessage.addListener(
             tfReturn = 0;
 
 
-            chrome.storage.sync.get('wiki_stack', function (data) {
+            chrome.storage.local.get('wiki_stack', function (data) {
                 if (data.wiki_stack) {
                     wiki_stack = data.wiki_stack;
                     push_tab(cur_article_key);
@@ -103,7 +110,7 @@ chrome.runtime.onMessage.addListener(
 
                 }
 
-                chrome.storage.sync.get("user_map", function (data) {
+                chrome.storage.local.get("user_map", function (data) {
                     if (data.user_map) {
                         user_map = data.user_map;
                         if (user_map[cur_article_key]) {
@@ -123,7 +130,7 @@ chrome.runtime.onMessage.addListener(
 
                     }
 
-                    chrome.storage.sync.set({'wiki_stack': wiki_stack, 'user_map': user_map}, function () {
+                    chrome.storage.local.set({'wiki_stack': wiki_stack, 'user_map': user_map}, function () {
                         // Notify that we saved.
                         console.log('Settings saved');
 
@@ -181,7 +188,7 @@ chrome.runtime.onMessage.addListener(
                 //could go off of firstHeading instead of by domain
             }
 
-            chrome.storage.sync.set({'wiki_stack': wiki_stack}, function () {
+            chrome.storage.local.set({'wiki_stack': wiki_stack}, function () {
                 // Notify that we saved.
                 console.log('wiki_stack saved in push_tab');
                 console.log('Settings saved');
@@ -230,7 +237,7 @@ chrome.runtime.onMessage.addListener(
 
             user_map[new_item.article_key] = new_item;
 
-            chrome.storage.sync.set({'user_map': user_map}, function () {
+            chrome.storage.local.set({'user_map': user_map}, function () {
                 // Notify that we saved.
                 console.log('Settings saved');
 
@@ -241,13 +248,13 @@ chrome.runtime.onMessage.addListener(
         }
 
         if (request.greeting == "reset_saved_data") {
-            chrome.storage.sync.set({"user_map": {}, "wiki_stack": {}}, resync_stack());
+            chrome.storage.local.set({"user_map": {}, "wiki_stack": {}}, resync_stack());
         }
 
     });
 
 function save_and_update() {
-    chrome.storage.sync.set({'user_map': user_map}, function () {
+    chrome.storage.local.set({'user_map': user_map}, function () {
         // Notify that we saved.
         console.log('Settings saved');
 
@@ -947,18 +954,19 @@ $(document).on("tfidf", function(){
 
         console.log(tfKeys);
 
+        //this gets taken care of in the contentscript.js
         //sort the array of keys by tfidf
-        tfKeys.sort(function (a, b) {
-            //console.log(globalTFIDF[a]);
-            //console.log(globalTFIDF[b]);
-            //console.log(globalTFIDF[a] - globalTFIDF[b]);
-
-
-            return (globalTFIDF[b] - globalTFIDF[a]);
-        });
-        //tfidfKeys = tfKeys;
-
-        console.log(tfKeys);
+        //tfKeys.sort(function (a, b) {
+        //    //console.log(globalTFIDF[a]);
+        //    //console.log(globalTFIDF[b]);
+        //    //console.log(globalTFIDF[a] - globalTFIDF[b]);
+        //
+        //
+        //    return (globalTFIDF[b] - globalTFIDF[a]);
+        //});
+        ////tfidfKeys = tfKeys;
+        //
+        //console.log(tfKeys);
 
         var tfidfRecs = {};
         for(var i = 0; i < tfKeys.length;i++){

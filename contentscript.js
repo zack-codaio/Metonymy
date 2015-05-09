@@ -46,8 +46,13 @@ $(document).ready(function () {
 
     function init_stack() {
         console.log("called init_stack");
+        console.log("cur tab");
+        //console.log(chrome.tabs.getCurrent());
+
         chrome.runtime.sendMessage({greeting: "init", display_name: display_name}, function (response) {
             console.log("received init response");
+
+
             console.log(response.farewell);
         });
     }
