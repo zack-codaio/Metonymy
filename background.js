@@ -11,6 +11,11 @@ var wiki_stack;
 var user_map = {};
 var number_returns = 0;
 var ignore_list = ["Bosnian language"];
+var tfReturn = 0;
+var idfReturn = 0;
+var globalTF = {};
+var globalIDF = {}
+var globalTFIDF = {};
 
 
 //first thing: resyncs and pushes to contentscript.js
@@ -84,6 +89,7 @@ chrome.runtime.onMessage.addListener(
 
             //check nearby connections
             get_local_holes(request.display_name);
+            tfReturn = 0;
 
 
             chrome.storage.sync.get('wiki_stack', function (data) {
@@ -105,7 +111,16 @@ chrome.runtime.onMessage.addListener(
                             console.log(user_map[cur_article_key].last_accessed);
                             user_map[cur_article_key].last_accessed = Date.now();
                         }
+                        //tf
+                        //get_local_holes();
+                        //tfReturn = 0;
+
+                        //idf
                         get_graph_holes();
+                        idfReturn = 0;
+
+                        //tf-idf
+
                     }
 
                     chrome.storage.sync.set({'wiki_stack': wiki_stack, 'user_map': user_map}, function () {
@@ -358,7 +373,7 @@ function get_local_holes(curNode) {
     //get local connections
     var immediate_connections = {};
     var query_returns = 0;
-    var limit_results = 25;
+    var limit_results = 100;
 
     var node_tree = {};
     node_tree[curNode] = {};
@@ -399,7 +414,7 @@ function get_local_holes(curNode) {
                     var responseJson = JSON.parse(response.target.response);
                     console.log(responseJson);
 
-                    console.log(responseJson.results[0].data[0].row[0].title);
+                    //console.log(responseJson.results[0].data[0].row[0].title);
                     for (var i = 0; i < limit_results; i++) {
                         if (typeof(responseJson.results[0].data[i]) != "undefined") {
                             var current_sighting = responseJson.results[0].data[i].row[0].title;
@@ -490,7 +505,7 @@ function get_local_holes(curNode) {
                             //console.log(i);
                             if (typeof(compiled_keys[i]) != "undefined" && immediate_connections[compiled_keys[i]] <= 1) {
                                 //console.log("deleting: "+compiled_keys[i]);
-                                delete immediate_connections[compiled_keys[i]];
+                                //delete immediate_connections[compiled_keys[i]];
                             }
                             else {
                                 //console.log(immediate_connections[compiled_keys[i]]);
@@ -498,8 +513,26 @@ function get_local_holes(curNode) {
                             }
                         }
 
-                        console.log(immediate_connections);
-                        push_recommendations(immediate_connections);
+                        console.log("term frequency");
+                        console.log(immediate_connections); // this is TF
+                        var totalTF = 0;
+                        for(var i = 0; i < compiled_keys.length; i++){
+                            //console.log(immediate_connections[compiled_keys[i]]);
+                            totalTF += immediate_connections[compiled_keys[i]];
+                        }
+                        console.log(totalTF);
+                        var tf = {};
+                        for(var i = 0; i < compiled_keys.length; i++){
+                            tf[compiled_keys[i]] = immediate_connections[compiled_keys[i]] / totalTF;
+                        }
+                        console.log("tf:");
+                        console.log(tf);
+                        tfReturn = 1;
+                        globalTF = tf;
+                        $(document).trigger("tfidf");
+
+                        console.log("push recommendations -- commented out");
+                        //push_recommendations(immediate_connections);
 
                         console.log("finished node tree:");
                         console.log(node_tree);
@@ -746,7 +779,9 @@ function get_graph_holes() {
                                 }
                             }
                             console.log("merged nodes:");
-                            console.log(merged_nodes);
+                            console.log(merged_nodes); //IDF
+                            //need to turn this into frequency
+
 
                             console.log("sort nodes:");
 
@@ -773,7 +808,39 @@ function get_graph_holes() {
                                 return num2linksB - num2linksA;
                             });
 
+                            console.log("turn this into frequency");
                             console.log(merged_targets);
+
+                            idf = {}; // want key: frequency
+                            for(var i = 0; i < merged_targets.length; i++){ //iterate through keys
+                                for(var j = 0; j < merged_nodes[merged_targets[i]].length; j++){ //iterate through array
+                                    for(var k = 0; k < merged_nodes[merged_targets[i]][j].length; k++){
+                                        var key = merged_nodes[merged_targets[i]][j][k];
+                                        if(typeof(idf[key]) == "undefined"){
+                                            idf[key] = 1;
+                                        }
+                                        else{
+                                            idf[key] = idf[key] + 1;
+                                        }
+                                    }
+                                }
+                            }
+                            console.log("inverse document frequency");
+                            console.log(idf);
+                            //calculate total #
+                            var idfKeys = Object.keys(idf);
+                            var totalIDF = 0;
+                            for(var i = 0; i < idfKeys.length; i++){
+                                totalIDF += idf[idfKeys[i]];
+                            }
+                            console.log(totalIDF);
+                            for(var i = 0; i < idfKeys.length; i++){
+                                idf[idfKeys[i]] = idf[idfKeys[i]] / totalIDF
+                            }
+                            console.log(idf);
+                            idfReturn = 1;
+                            globalIDF = idf;
+                            $(document).trigger("tfidf");
 
 
                         }
@@ -828,6 +895,9 @@ function get_graph_holes() {
 
 function push_recommendations(recommendations) {
     //pass data to contentscript.js
+    console.log("push recommendations");
+    console.log(recommendations);
+
     chrome.tabs.query({active: true, currentWindow: true}, function (tabs) {
         chrome.tabs.sendMessage(tabs[0].id, {
             greeting: "push_recommendations",
@@ -836,3 +906,70 @@ function push_recommendations(recommendations) {
         });
     });
 }
+
+
+//do tf-idf
+//push recommendations
+$(document).on("tfidf", function(){
+    //console.log("tfidf listener triggered");
+    //console.log("tfReturn = " + tfReturn);
+    //console.log("idfReturn = "+idfReturn);
+    if(tfReturn == 1 && idfReturn == 1){
+        console.log("tfidf listener - both true");
+
+        //create tfidf by dividing all items in tf array by corresponding idf
+
+        console.log(globalTF);
+        console.log(globalIDF);
+
+        var tfKeys = Object.keys(globalTF);
+        for(var i = 0; i < tfKeys.length; i++){
+            try{
+                //console.log("globalTF : "+globalTF[tfKeys[i]]);
+                //console.log("globalIDF : "+globalIDF[tfKeys[i]]);
+                if(typeof(globalIDF[tfKeys[i]]) != "undefined"){
+                    globalTFIDF[tfKeys[i]] = globalTF[tfKeys[i]] / globalIDF[tfKeys[i]];
+                }
+                else{
+                    //this is totally hacky - solution for when IDF is undefined
+                    globalTFIDF[tfKeys[i]] = globalTF[tfKeys[i]] / .00005;
+                }
+
+                //console.log("globalTFIDF : "+globalTFIDF[tfKeys[i]]);
+            }
+            catch(err){
+                console.log(err);
+                console.log(tfKeys[i]);
+            }
+        }
+        console.log("globalTFIDF:");
+        console.log(globalTFIDF);
+
+        console.log(tfKeys);
+
+        //sort the array of keys by tfidf
+        tfKeys.sort(function (a, b) {
+            //console.log(globalTFIDF[a]);
+            //console.log(globalTFIDF[b]);
+            //console.log(globalTFIDF[a] - globalTFIDF[b]);
+
+
+            return (globalTFIDF[b] - globalTFIDF[a]);
+        });
+        //tfidfKeys = tfKeys;
+
+        console.log(tfKeys);
+
+        var tfidfRecs = {};
+        for(var i = 0; i < tfKeys.length;i++){
+            //console.log(tfKeys[i]);
+            //console.log(globalTFIDF[tfKeys[i]]);
+            tfidfRecs[tfKeys[i]] = globalTFIDF[tfKeys[i]];
+        }
+        push_recommendations(tfidfRecs);
+
+        //sort array
+        //push recommendations
+
+    }
+});

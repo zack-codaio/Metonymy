@@ -122,7 +122,8 @@ $(document).ready(function () {
 
                 var links_container = $("#recommendations");
                 links_container.html("<p>Recommendations</p>");
-                for (var i = 0; i < rec_keys.length; i++) {
+                for (var i = 0; i < 20; i++) {
+                //for (var i = 0; i < rec_keys.length; i++) {
 
                     // /w/index.php?search=Barack+Obama%2C+Sr.&title=Special%3ASearch
                     //var rec_spaces = rec_keys[i].replace(" ", "+");
@@ -130,7 +131,7 @@ $(document).ready(function () {
                     //console.log("spaces replaced: "+rec_spaces);
                     var rec_link = '/w/index.php?search='+rec_spaces+'&title=Special%3ASearch';
                     //console.log(rec_link);
-                    links_container.append("<a href=" + rec_link + "><div class='saved_link'>" + rec_keys[i] + " "+recommendations[rec_keys[i]] +"</div></a>");
+                    links_container.append("<a href=" + rec_link + "><div class='saved_link'>" + rec_keys[i] + " "+recommendations[rec_keys[i]].toString().split(".")[0] +"</div></a>");
                 }
 
 
@@ -151,7 +152,7 @@ $(document).ready(function () {
                 saved_stack = request.user_map;
 
                 var saved_links = Object.keys(request.user_map);
-                //console.log(saved_links);
+                console.log(saved_links);
 
                 //to sort by date added
                 //sort the array of keys by date added
@@ -287,7 +288,7 @@ $(document).ready(function () {
         };
 
 
-        set_nodes();
+        //set_nodes();
         console.log("set_nodes()");
         function set_nodes() {
             my_nodes = {"nodes": [], "links": []};
