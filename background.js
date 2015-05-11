@@ -95,7 +95,8 @@ chrome.runtime.onMessage.addListener(
             var cur_article_key = sender.tab.url.split("/wiki/")[1]; //whatever is after /wiki/
 
             //check nearby connections
-            get_local_holes(request.display_name);
+            //get_local_holes(request.display_name);
+            ingroup_connections();
             tfReturn = 0;
 
 
@@ -783,7 +784,7 @@ function get_graph_holes() {
                                         pathChain[1] = twoKeys[j];
                                         pathChain[2] = node_tree[oneKeys[i]][twoKeys[j]][k];
 
-                                        if (pathChain[0] != "Bosnian language" && pathChain[1] != "Bosnian language" && pathChain[2] != "Bosnian language") {
+                                        //if (pathChain[0] != "Bosnian language" && pathChain[1] != "Bosnian language" && pathChain[2] != "Bosnian language") {
 
                                             if (typeof(merged_nodes[pathChain[2]]) == "undefined") {
                                                 merged_nodes[pathChain[2]] = [pathChain];
@@ -791,11 +792,11 @@ function get_graph_holes() {
                                             else {
                                                 merged_nodes[pathChain[2]].push(pathChain);
                                             }
-                                        }
-                                        else {
+                                        //}
+                                        //else {
                                             //console.log("ignoring: ");
                                             //console.log(pathChain);
-                                        }
+                                        //}
                                     }
                                 }
                             }
@@ -861,6 +862,325 @@ function get_graph_holes() {
                             console.log(idf);
                             idfReturn = 1;
                             globalIDF = idf;
+                            $(document).trigger("tfidf");
+
+
+                        }
+
+                        //mark recently visited
+                        //mark already saved
+                    }
+
+                    var responseJson = JSON.parse(response.target.response);
+                    //console.log(responseJson);
+
+                    try {
+                        if (typeof(responseJson.results[0].data[0].row) != "undefined") {
+                            //console.log(responseJson.results[0].data[0].row[0].title);
+                            for (var i = 0; i < limit_results; i++) {
+
+                                if (typeof(responseJson.results[0].data[i]) != "undefined" && typeof(responseJson.results[0].data[i].row) != "undefined") {
+                                    var current_sighting = responseJson.results[0].data[i].row[0].title;
+                                    //check for existence
+                                    if (typeof(current_sighting) != "undefined") {
+                                        //push to immediate_connections
+                                        if (typeof(immediate_connections[current_sighting]) == "undefined") {
+                                            immediate_connections[current_sighting] = 1;
+                                        }
+                                        else {
+                                            immediate_connections[current_sighting] = parseInt(immediate_connections[current_sighting]) + 1;
+                                        }
+
+                                        //console.log("parentNode: "+parentNode);
+                                        //console.log("nodeA: "+nodeA);
+                                        node_tree[parentNode][nodeA].push(current_sighting);
+                                    }
+                                }
+
+
+                            }
+                        }
+                    }
+                    catch (err) {
+                        console.log(err);
+                        //console.log(responseJson);
+                    }
+
+                }
+            };
+            xhr.send(JSON.stringify(postJson));
+
+        }
+    }
+}
+
+function ingroup_connections() {
+    //if curNode is undefined, get holes for entire graph
+    //else, get holes that are most closely related to current node
+    console.log("called ingroup_connections()");
+
+    //compile a list of all connections either related to current node or to the entire graph
+    //get local connections
+    var immediate_connections = {};
+    var query_returns = 0;
+    var limit_results = 100;
+
+    var node_tree = {};
+    //change this to user-defined ingroup
+    //if none, default to current page only
+
+    var ingroup = {"John von Neumann":true, "Claude Shannon":true, "You have two cows":true};
+
+    for (var i = 0; i < Object.keys(ingroup).length; i++) {
+        node_tree[Object.keys(ingroup)[i]] = {};
+        get_immediate_connections(Object.keys(ingroup)[i]);
+        //console.log("calling immediate connections from graph_holes(): " + Object.keys(user_map)[i]);
+    }
+
+
+    console.log("node tree:");
+    console.log(node_tree);
+
+    //key: article name
+    //value: sightings
+
+
+    //return list of all connections on a single node
+    function get_immediate_connections(nodeA) {
+        var query = "MATCH (p0:Page {title:'" + nodeA + "'})-[r:Link]->(results) RETURN results LIMIT " + limit_results;
+        //console.log(query);
+        var params = {title1: nodeA};
+        var cb = function (err, data) {
+            console.log(JSON.stringify(data))
+        }
+
+        var postJson = {};
+        var statements = {"statement": query, "parameters": params};
+        postJson.statements = [statements];
+
+        var txUrl = "http://localhost:7474/db/data/transaction/commit";
+
+        cypher(query, params, cb);
+
+        function cypher(query, params, cb) {
+
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", txUrl, true);
+            xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+            xhr.onreadystatechange = function (response) {
+                if (xhr.readyState == 4) {
+                    //console.log("get_connections() - returned from ajax request");
+                    //console.log(response);
+
+                    var responseJson = JSON.parse(response.target.response);
+                    //console.log(responseJson);
+
+                    //console.log(responseJson.results[0].data[0].row[0].title);
+                    for (var i = 0; i < limit_results; i++) {
+                        if (typeof(responseJson.results[0].data[i]) != "undefined") {
+                            var current_sighting = responseJson.results[0].data[i].row[0].title;
+                            //check for existence
+                            if (typeof(current_sighting) != "undefined") {
+                                //push to immediate_connections
+                                if (typeof(immediate_connections[current_sighting]) == "undefined") {
+                                    immediate_connections[current_sighting] = 1;
+                                }
+                                else {
+                                    immediate_connections[current_sighting] = parseInt(immediate_connections[current_sighting]) + 1;
+                                }
+                            }
+                        }
+                    }
+
+                    //console.log(immediate_connections);
+
+                    //branch out one level deep
+                    var immediate_keys = Object.keys(immediate_connections);
+                    for (var i = 0; i < limit_results; i++) {
+                        var one_deep = immediate_keys[i];
+                        //check for existence
+                        if (typeof(one_deep) != "undefined") {
+                            query_returns++;
+                            get_connections(one_deep, nodeA);
+
+                            //console.log(one_deep);
+
+
+                            node_tree[nodeA][one_deep] = [];
+
+                        }
+                    }
+                    //console.log(node_tree);
+                    //console.log("query returns - pre");
+                    //console.log(query_returns);
+                }
+            };
+            xhr.send(JSON.stringify(postJson));
+
+        }
+    }
+
+//return list of all connections on a single node
+    function get_connections(nodeA, parentNode) {
+
+
+        var query = "MATCH (p0:Page {title:'" + nodeA + "'})-[r:Link]->(results) RETURN results LIMIT " + limit_results;
+        //console.log(query);
+        var params = {title1: nodeA};
+        var cb = function (err, data) {
+            console.log(JSON.stringify(data))
+        }
+
+        var postJson = {};
+        var statements = {"statement": query, "parameters": params};
+        postJson.statements = [statements];
+
+        var txUrl = "http://localhost:7474/db/data/transaction/commit";
+
+        cypher(query, params, cb);
+
+        function cypher(query, params, cb) {
+
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", txUrl, true);
+            xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+            xhr.onreadystatechange = function (response) {
+                if (xhr.readyState == 4) {
+                    //console.log("get_connections(" + nodeA + ") - returned from ajax request");
+                    //console.log(response);
+
+                    query_returns--;
+                    //console.log("query_returns - post " + query_returns);
+                    if (query_returns == 0) {
+                        console.log("returning compiled immediate_connections");
+
+
+                        //clean up
+                        //remove sightings == 1
+
+                        var compiled_keys = Object.keys(immediate_connections);
+                        //console.log(compiled_keys);
+                        //console.log(compiled_keys.length);
+                        for (var i = 0; i < compiled_keys.length; i++) {
+                            //console.log(compiled_keys[i]);
+                            //console.log(i);
+                            if (typeof(compiled_keys[i]) != "undefined" && immediate_connections[compiled_keys[i]] <= 1) {
+                                //console.log("deleting: "+compiled_keys[i]);
+                                delete immediate_connections[compiled_keys[i]];
+                            }
+                            else {
+                                //console.log(immediate_connections[compiled_keys[i]]);
+                                //console.log("not deleting: "+compiled_keys[i]);
+                            }
+                        }
+
+                        //console.log(immediate_connections);
+
+
+                        //push_recommendations(immediate_connections);
+
+                        console.log("finished node tree:");
+                        console.log(node_tree);
+
+                        merge_node_tree();
+
+                        function merge_node_tree() {
+                            //console.log("merging node tree:");
+
+                            merged_nodes = {};
+
+                            oneKeys = Object.keys(node_tree);
+                            for (var i = 0; i < oneKeys.length; i++) {
+                                merged_nodes[oneKeys[i]] = [];
+                                twoKeys = Object.keys(node_tree[oneKeys[i]]);
+                                for (var j = 0; j < twoKeys.length; j++) {
+                                    for (var k = 0; k < node_tree[oneKeys[i]][twoKeys[j]].length; k++) {
+                                        var pathChain = [];
+
+                                        //check ignore list, don't include path if it includes an ignored article
+
+                                        pathChain[0] = oneKeys[i];
+                                        pathChain[1] = twoKeys[j];
+                                        pathChain[2] = node_tree[oneKeys[i]][twoKeys[j]][k];
+
+                                        //if (pathChain[0] != "Bosnian language" && pathChain[1] != "Bosnian language" && pathChain[2] != "Bosnian language") {
+
+                                        if (typeof(merged_nodes[pathChain[2]]) == "undefined") {
+                                            merged_nodes[pathChain[2]] = [pathChain];
+                                        }
+                                        else {
+                                            merged_nodes[pathChain[2]].push(pathChain);
+                                        }
+                                        //}
+                                        //else {
+                                        //console.log("ignoring: ");
+                                        //console.log(pathChain);
+                                        //}
+                                    }
+                                }
+                            }
+                            console.log("merged nodes:");
+                            console.log(merged_nodes); //IDF
+                            //need to turn this into frequency
+
+
+                            console.log("sort nodes:");
+
+                            //to sort by # of 2 level links
+                            //sort the array of keys by date added
+
+                            merged_targets = Object.keys(merged_nodes);
+
+                            merged_targets.sort(function (a, b) {
+                                //build a set for each
+                                //count length
+                                var setA = {};
+                                for (var i = 0; i < merged_nodes[a].length; i++) {
+                                    setA[merged_nodes[a][i][1]] = true;
+                                }
+                                var num2linksA = Object.keys(setA).length;
+
+                                var setB = {};
+                                for (var i = 0; i < merged_nodes[b].length; i++) {
+                                    setB[merged_nodes[b][i][1]] = true;
+                                }
+                                var num2linksB = Object.keys(setB).length;
+
+                                return num2linksB - num2linksA;
+                            });
+
+                            console.log("turn this into frequency");
+                            console.log(merged_targets);
+
+                            var tf = {}; // want key: frequency
+                            for(var i = 0; i < merged_targets.length; i++){ //iterate through keys
+                                for(var j = 0; j < merged_nodes[merged_targets[i]].length; j++){ //iterate through array
+                                    for(var k = 0; k < merged_nodes[merged_targets[i]][j].length; k++){
+                                        var key = merged_nodes[merged_targets[i]][j][k];
+                                        if(typeof(tf[key]) == "undefined"){
+                                            tf[key] = 1;
+                                        }
+                                        else{
+                                            tf[key] = tf[key] + 1;
+                                        }
+                                    }
+                                }
+                            }
+                            console.log("ingroup term frequency");
+                            console.log(tf);
+                            //calculate total #
+                            var tfKeys = Object.keys(tf);
+                            var totalTF = 0;
+                            for(var i = 0; i < tfKeys.length; i++){
+                                totalTF += tf[tfKeys[i]];
+                            }
+                            console.log(totalTF);
+                            for(var i = 0; i < tfKeys.length; i++){
+                                tf[tfKeys[i]] = tf[tfKeys[i]] / totalTF
+                            }
+                            console.log(tf);
+                            tfReturn = 1;
+                            globalTF = tf;
                             $(document).trigger("tfidf");
 
 

@@ -16,6 +16,7 @@
   overflow:visible;
 
   border-left:1px solid #a7d7f9;
+  font-family: 'Josefin Sans', sans-serif;
 }
 
 #rh_sidebar{
@@ -34,6 +35,12 @@
 
   .saved_link{
     padding:10px;
+    margin:10px;
+    border-radius:3px;
+    background-color:white;
+//    border:#005794 1px solid;
+    border:#a7d7f9 1px solid;
+//    color:white;
   }
 
   #saved_links{
@@ -45,6 +52,7 @@
     position:absolute;
     top:50px;
     bottom:50px;
+    width:100%;
 
   }
 
@@ -105,4 +113,21 @@
 #reset_state_button{
   position:absolute;
   bottom: 0;
+}
+
+.container_head{
+  padding-left:10px;
+  font-weight:700;
+}
+
+.link_name{
+  vertical-align:middle;
+  display:inline-block;
+  width:234px;
+}
+
+.link_button{
+  vertical-align:middle;
+  display:inline-block;
+  width:20px;
 }

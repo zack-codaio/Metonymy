@@ -126,7 +126,7 @@ $(document).ready(function () {
 
 
                 var links_container = $("#recommendations");
-                links_container.html("<p>Recommendations</p>");
+                links_container.html("<p class='container_head'>Recommendations</p>");
                 for (var i = 0; i < 6; i++) {
                 //for (var i = 0; i < rec_keys.length; i++) {
 
@@ -170,11 +170,38 @@ $(document).ready(function () {
                 console.log(last_links);
 
 
+                var toggleURL = chrome.extension.getURL("img/toggle.png");
+                var untoggleURL = chrome.extension.getURL("img/untoggled.png");
+
                 var links_container = $("#saved_links");
-                links_container.html("<p>Saved Links</p>");
+
+                links_container.html("<p class='container_head'>Saved Links</p>");
                 for (var i = 0; i < saved_links.length; i++) {
-                    links_container.append("<a href=" + request.user_map[saved_links[i]].url + "><div class='saved_link'>" + request.user_map[saved_links[i]].display_name + "</div></a>");
+                    var display_name = request.user_map[saved_links[i]].display_name;
+                    links_container.append(
+                        "<div class='saved_link' onclick=''>" +
+                        "<div class='link_name'>" + display_name + "</div>" +
+                        "<div class='link_button'><img class='saved_icon' mytoggled='false' mylink='"+display_name +"' src="+untoggleURL+"></div>" +
+                        "</div>"
+                    );
                 }
+
+                $(".saved_icon").each(function(){
+                    $(this).click(function(event){
+                        //console.log($(this).attr("mytoggled"));
+                        if($(this).attr("mytoggled") == 'false'){
+                            $(this).attr("src", toggleURL);
+                            $(this).attr("mytoggled", 'true');
+                            //put in upper list
+                        }
+                        else{
+                            //remove from upper list
+                            $(this).attr("src", untoggleURL);
+                            $(this).attr("mytoggled", 'false');
+                        }
+                    });
+
+                });
 
                 draw_graph();
             }
