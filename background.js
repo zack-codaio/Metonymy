@@ -17,6 +17,8 @@ var globalTF = {};
 var globalIDF = {}
 var globalTFIDF = {};
 var tabID = {};
+var ingroup = {};
+var current_display_name = "";
 
 
 //first thing: resyncs and pushes to contentscript.js
@@ -83,20 +85,56 @@ chrome.runtime.onMessage.addListener(
         "from a content script:" + sender.tab.url :
             "from the extension");
 
+        if(request.greeting == "push_ingroup"){
+            ingroup[request.display_name] = true;
+            //push save list back to contentscript
+            chrome.tabs.query({active: true, currentWindow: true}, function (tabs) {
+                chrome.tabs.sendMessage(tabs[0].id, {
+                    greeting: "ingroup",
+                    ingroup: ingroup
+                }, function (response) {
+                });
+            });
+
+            tfReturn = 0;
+            ingroup_connections(request.display_name); //this really shouldn't matter since there should be an ingroup after this, but the default of request.display_name should probably be current_display_name instead
+            idfReturn = 0;
+            get_graph_holes();
+        }
+        if(request.greeting == "remove_ingroup"){
+            ingroup[request.display_name] = false;
+            delete ingroup[request.display_name];
+            //push save list back to contentscript
+            chrome.tabs.query({active: true, currentWindow: true}, function (tabs) {
+                chrome.tabs.sendMessage(tabs[0].id, {
+                    greeting: "ingroup",
+                    ingroup: ingroup
+                }, function (response) {
+                });
+            });
+
+            tfReturn = 0;
+            ingroup_connections(current_display_name);// default to current page
+            idfReturn = 0;
+            get_graph_holes();
+        }
+
         if (request.greeting == "init") {
             console.log("received init");
 
             //tabID = tabs[0].id;
 
 
-
             console.log(request);
 
             var cur_article_key = sender.tab.url.split("/wiki/")[1]; //whatever is after /wiki/
 
+            current_display_name = request.display_name;
+
+            ingroup[request.display_name] = true;
             //check nearby connections
             //get_local_holes(request.display_name);
-            ingroup_connections();
+            ingroup_connections(request.display_name);
             tfReturn = 0;
 
 
@@ -143,7 +181,8 @@ chrome.runtime.onMessage.addListener(
                             chrome.tabs.sendMessage(tabs[0].id, {
                                 greeting: "init_stack",
                                 wiki_stack: wiki_stack,
-                                user_map: user_map
+                                user_map: user_map,
+                                ingroup: ingroup
                             }, function (response) {
                             });
                         });
@@ -914,7 +953,7 @@ function get_graph_holes() {
     }
 }
 
-function ingroup_connections() {
+function ingroup_connections(curNode) {
     //if curNode is undefined, get holes for entire graph
     //else, get holes that are most closely related to current node
     console.log("called ingroup_connections()");
@@ -929,13 +968,25 @@ function ingroup_connections() {
     //change this to user-defined ingroup
     //if none, default to current page only
 
-    var ingroup = {"John von Neumann":true, "Claude Shannon":true, "You have two cows":true};
+    //var ingroup = {"John von Neumann":true, "Claude Shannon":true, "You have two cows":true};
 
-    for (var i = 0; i < Object.keys(ingroup).length; i++) {
-        node_tree[Object.keys(ingroup)[i]] = {};
-        get_immediate_connections(Object.keys(ingroup)[i]);
-        //console.log("calling immediate connections from graph_holes(): " + Object.keys(user_map)[i]);
+    console.log("ingroup:");
+    console.log(ingroup);
+
+    if(Object.keys(ingroup).length == 0){
+        //default to current page
+        console.log('defaulting to current page');
+        node_tree[curNode] = {};
+        get_immediate_connections(curNode);
     }
+    else{
+        for (var i = 0; i < Object.keys(ingroup).length; i++) {
+            node_tree[Object.keys(ingroup)[i]] = {};
+            get_immediate_connections(Object.keys(ingroup)[i]);
+            //console.log("calling immediate connections from graph_holes(): " + Object.keys(user_map)[i]);
+        }
+    }
+
 
 
     console.log("node tree:");
@@ -948,7 +999,7 @@ function ingroup_connections() {
     //return list of all connections on a single node
     function get_immediate_connections(nodeA) {
         var query = "MATCH (p0:Page {title:'" + nodeA + "'})-[r:Link]->(results) RETURN results LIMIT " + limit_results;
-        //console.log(query);
+        console.log(query);
         var params = {title1: nodeA};
         var cb = function (err, data) {
             console.log(JSON.stringify(data))

@@ -107,6 +107,18 @@ $(document).ready(function () {
                 $('#mw-head').css({"margin-right": "0"});
             }
 
+            if(request.greeting == "ingroup"){
+                console.log("received ingroup");
+                console.log(request.ingroup);
+
+                $('.saved_icon').each(function(){
+                    if(ingroup[$(this).attr("display_name")] == true){
+                        $(this).attr("src", toggleURL);
+                        $(this).attr("mytoggled", 'true');
+                    }
+                });
+            }
+
             if (request.greeting == "push_recommendations"){
                 console.log("received push_recommendations");
                 var recommendations = request.recommendations;
@@ -178,30 +190,91 @@ $(document).ready(function () {
                 links_container.html("<p class='container_head'>Saved Links</p>");
                 for (var i = 0; i < saved_links.length; i++) {
                     var display_name = request.user_map[saved_links[i]].display_name;
-                    links_container.append(
-                        "<div class='saved_link' onclick=''>" +
-                        "<div class='link_name'>" + display_name + "</div>" +
-                        "<div class='link_button'><img class='saved_icon' mytoggled='false' mylink='"+display_name +"' src="+untoggleURL+"></div>" +
-                        "</div>"
-                    );
+                    console.log(request.user_map[saved_links[i]]);
+                    console.log(request);
+                    if(typeof(request.ingroup[display_name]) == 'undefined' || request.ingroup[display_name] == false) {
+                        links_container.append(
+                            "<div class='saved_link' onclick='window.location = \"" + request.user_map[saved_links[i]].url + "\"'>" +
+                            "<div class='link_name'>" + display_name + "</div>" +
+                            "<div class='link_button'><img class='saved_icon' article_key='" + request.user_map[saved_links[i]].article_key + "' mytoggled='false' mylink='" + display_name + "' src=" + untoggleURL + "></div>" +
+                            "</div>"
+                        );
+                    }
+                    else{
+                        $("#ingroup").append(
+                            "<div class='saved_link' onclick='window.location = \"" + request.user_map[saved_links[i]].url + "\"'>" +
+                            "<div class='link_name'>" + display_name + "</div>" +
+                            "<div class='link_button'><img class='saved_icon' article_key='" + request.user_map[saved_links[i]].article_key + "' mytoggled='true' mylink='" + display_name + "' src=" + toggleURL + "></div>" +
+                            "</div>"
+                        );
+                    }
                 }
+
+            //<a href=" + request.user_map[saved_links[i]].url +
 
                 $(".saved_icon").each(function(){
                     $(this).click(function(event){
                         //console.log($(this).attr("mytoggled"));
+                        event.stopPropagation();
+
+                        var display_name = $(this).attr("mylink");
+                        var article_key = $(this).attr("article_key");
+
                         if($(this).attr("mytoggled") == 'false'){
                             $(this).attr("src", toggleURL);
                             $(this).attr("mytoggled", 'true');
+
+
                             //put in upper list
+                            var element = $(this).parent().parent().detach();
+                            $('#ingroup').append(element);
+
+                            //push to ingroup
+
+
+                            chrome.runtime.sendMessage({
+                                greeting: "push_ingroup",
+                                display_name: display_name,
+                                article_key: article_key
+                            }, function (response) {
+                                console.log("received push_ingroup response");
+                                console.log(response.farewell);
+                                //add stack of last_links (sorted)
+                            })
                         }
                         else{
                             //remove from upper list
                             $(this).attr("src", untoggleURL);
                             $(this).attr("mytoggled", 'false');
+
+                            var element = $(this).parent().parent().detach();
+                            $('#saved_links').append(element);
+
+                            //remove from ingroup
+                            chrome.runtime.sendMessage({
+                                greeting: "remove_ingroup",
+                                display_name: display_name,
+                                article_key: article_key
+                            }, function (response) {
+                                console.log("received remove_ingroup response");
+                                console.log(response.farewell);
+                                //add stack of last_links (sorted)
+                            })
                         }
                     });
 
                 });
+
+                //$('.saved_icon').each(function(){
+                //    if(request.ingroup[$(this).attr("mylink")] == true){
+                //        console.log($(this).attr("mylink") + " : true");
+                //        $(this).attr("src", toggleURL);
+                //        $(this).attr("mytoggled", 'true');
+                //    }
+                //    else{
+                //        console.log($(this).attr("mylink") + " : false");
+                //    }
+                //});
 
                 draw_graph();
             }
